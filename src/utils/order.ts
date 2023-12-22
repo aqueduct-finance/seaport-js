@@ -185,7 +185,7 @@ export const mapOrderAmountsFromFilledStatus = (
 
   // i.e if totalFilled is 3 and totalSize is 4, there are 1 / 4 order amounts left to fill.
   const basisPoints =
-    totalSize - (totalFilled * ONE_HUNDRED_PERCENT_BP) / totalSize;
+    ((totalSize - totalFilled) * ONE_HUNDRED_PERCENT_BP) / totalSize;
 
   return {
     parameters: {
