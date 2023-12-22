@@ -225,7 +225,7 @@ const multiplyDivision = (
  */
 export const mapOrderAmountsFromUnitsToFill = (
   order: Order,
-  { unitsToFill, totalSize }: { unitsToFill: BigNumberish; totalSize: bigint },
+  { unitsToFill }: { unitsToFill: BigNumberish },
 ): Order => {
   const unitsToFillBn = BigInt(unitsToFill);
 
@@ -233,11 +233,7 @@ export const mapOrderAmountsFromUnitsToFill = (
     throw new Error("Units to fill must be greater than 1");
   }
 
-  const maxUnits = getMaximumSizeForOrder(order);
-
-  if (totalSize === 0n) {
-    totalSize = maxUnits;
-  }
+  const totalSize = getMaximumSizeForOrder(order);
 
   return {
     parameters: {
