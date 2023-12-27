@@ -55,8 +55,10 @@ export const deductFees = <T extends Item>(
     return items;
   }
 
+  // use maker fee if provided, else use legacy basisPoints value
   const totalBasisPoints = fees.reduce(
-    (accBasisPoints, fee) => accBasisPoints + fee.basisPoints,
+    (accBasisPoints, fee) =>
+      accBasisPoints + (fee.makerFee ? fee.makerFee : fee.basisPoints),
     0,
   );
 
