@@ -413,60 +413,360 @@ describeWithFixture("As a user I want to create an order", (fixture) => {
     expect(isValid).to.be.true;
   });
 
+  it("should apply maker fees correctly", async () => {
+    const { seaportContract, seaport, testErc20 } = fixture;
+
+    const [offerer, zone, randomSigner] = await ethers.getSigners();
+    await testErc20.mint(
+      await offerer.getAddress(),
+      parseEther("10").toString(),
+    );
+    const startTime = "0";
+    const endTime = MAX_INT.toString();
+    const salt = generateRandomSalt();
+
+    const { actions } = await seaport.createOrder({
+      startTime,
+      endTime,
+      salt,
+      offer: [
+        {
+          token: await testErc20.getAddress(),
+          amount: parseEther("10").toString(),
+        },
+      ],
+      consideration: [
+        {
+          amount: ethers.parseEther("10").toString(),
+          recipient: await offerer.getAddress(),
+        },
+      ],
+      // 2.5% fee
+      makerFees: [
+        {
+          recipient: await zone.getAddress(),
+          basisPoints: 250,
+        },
+      ],
+    });
+
+    const approvalAction = actions[0] as ApprovalAction;
+    await approvalAction.transactionMethods.transact();
+
+    const createOrderAction = actions[1] as CreateOrderAction;
+    const order = await createOrderAction.createOrder();
+
+    expect(createOrderAction.type).to.equal("create");
+
+    const newConsiderationAmount = (
+      (ethers.parseEther("10") * (10_000n - 250n)) /
+      10_000n
+    ).toString();
+    const feeAmount = ((ethers.parseEther("10") * 250n) / 10_000n).toString();
+
+    expect(order).to.deep.equal({
+      parameters: {
+        consideration: [
+          // adjusted consideration
+          {
+            startAmount: newConsiderationAmount,
+            endAmount: newConsiderationAmount,
+            identifierOrCriteria: "0",
+            itemType: ItemType.NATIVE,
+            token: ethers.ZeroAddress,
+            recipient: await offerer.getAddress(),
+          },
+          // fee
+          {
+            startAmount: feeAmount,
+            endAmount: feeAmount,
+            identifierOrCriteria: "0",
+            itemType: ItemType.NATIVE,
+            token: ethers.ZeroAddress,
+            recipient: await zone.getAddress(),
+          },
+        ],
+        endTime,
+        offer: [
+          {
+            startAmount: ethers.parseEther("10").toString(),
+            endAmount: ethers.parseEther("10").toString(),
+            identifierOrCriteria: "0",
+            itemType: ItemType.ERC20,
+            token: await testErc20.getAddress(),
+          },
+        ],
+        offerer: await offerer.getAddress(),
+        orderType: OrderType.FULL_OPEN,
+        salt,
+        startTime,
+        totalOriginalConsiderationItems: 2,
+        zone: ethers.ZeroAddress,
+        zoneHash: ethers.ZeroHash,
+        conduitKey: NO_CONDUIT,
+        counter: "0",
+      },
+      signature: order.signature,
+    });
+
+    const isValid = await seaportContract
+      .connect(randomSigner)
+      .validate.staticCall([
+        {
+          parameters: {
+            ...order.parameters,
+            totalOriginalConsiderationItems:
+              order.parameters.consideration.length,
+          },
+          signature: order.signature,
+        },
+      ]);
+
+    expect(isValid).to.be.true;
+  });
+
+  it("should apply taker fees correctly", async () => {
+    const { seaportContract, seaport, testErc20 } = fixture;
+
+    const [offerer, zone, randomSigner] = await ethers.getSigners();
+    await testErc20.mint(
+      await offerer.getAddress(),
+      parseEther("10").toString(),
+    );
+    const startTime = "0";
+    const endTime = MAX_INT.toString();
+    const salt = generateRandomSalt();
+
+    const { actions } = await seaport.createOrder({
+      startTime,
+      endTime,
+      salt,
+      offer: [
+        {
+          token: await testErc20.getAddress(),
+          amount: parseEther("10").toString(),
+        },
+      ],
+      consideration: [
+        {
+          amount: ethers.parseEther("10").toString(),
+          recipient: await offerer.getAddress(),
+        },
+      ],
+      // 2.5% fee
+      takerFees: [
+        {
+          recipient: await zone.getAddress(),
+          basisPoints: 250,
+        },
+      ],
+    });
+
+    const approvalAction = actions[0] as ApprovalAction;
+    await approvalAction.transactionMethods.transact();
+
+    const createOrderAction = actions[1] as CreateOrderAction;
+    const order = await createOrderAction.createOrder();
+
+    expect(createOrderAction.type).to.equal("create");
+
+    const feeAmount = ((ethers.parseEther("10") * 250n) / 10_000n).toString();
+
+    expect(order).to.deep.equal({
+      parameters: {
+        consideration: [
+          // original consideration is unchanged
+          {
+            startAmount: ethers.parseEther("10"),
+            endAmount: ethers.parseEther("10"),
+            identifierOrCriteria: "0",
+            itemType: ItemType.NATIVE,
+            token: ethers.ZeroAddress,
+            recipient: await offerer.getAddress(),
+          },
+          // pay part of the offer amount as the taker fee
+          {
+            startAmount: feeAmount,
+            endAmount: feeAmount,
+            identifierOrCriteria: "0",
+            itemType: ItemType.ERC20,
+            token: await testErc20.getAddress(),
+            recipient: await zone.getAddress(),
+          },
+        ],
+        endTime,
+        offer: [
+          {
+            startAmount: ethers.parseEther("10").toString(),
+            endAmount: ethers.parseEther("10").toString(),
+            identifierOrCriteria: "0",
+            itemType: ItemType.ERC20,
+            token: await testErc20.getAddress(),
+          },
+        ],
+        offerer: await offerer.getAddress(),
+        orderType: OrderType.FULL_OPEN,
+        salt,
+        startTime,
+        totalOriginalConsiderationItems: 2,
+        zone: ethers.ZeroAddress,
+        zoneHash: ethers.ZeroHash,
+        conduitKey: NO_CONDUIT,
+        counter: "0",
+      },
+      signature: order.signature,
+    });
+
+    const isValid = await seaportContract
+      .connect(randomSigner)
+      .validate.staticCall([
+        {
+          parameters: {
+            ...order.parameters,
+            totalOriginalConsiderationItems:
+              order.parameters.consideration.length,
+          },
+          signature: order.signature,
+        },
+      ]);
+
+    expect(isValid).to.be.true;
+  });
+
+  it("should apply combined maker/taker fees correctly", async () => {
+    const { seaportContract, seaport, testErc20 } = fixture;
+
+    const [offerer, zone, randomSigner] = await ethers.getSigners();
+    await testErc20.mint(
+      await offerer.getAddress(),
+      parseEther("10").toString(),
+    );
+    const startTime = "0";
+    const endTime = MAX_INT.toString();
+    const salt = generateRandomSalt();
+
+    const { actions } = await seaport.createOrder({
+      startTime,
+      endTime,
+      salt,
+      offer: [
+        {
+          token: await testErc20.getAddress(),
+          amount: parseEther("10").toString(),
+        },
+      ],
+      consideration: [
+        {
+          amount: ethers.parseEther("10").toString(),
+          recipient: await offerer.getAddress(),
+        },
+      ],
+      makerFees: [
+        {
+          recipient: await zone.getAddress(),
+          basisPoints: 500,
+        },
+      ],
+      takerFees: [
+        {
+          recipient: await zone.getAddress(),
+          basisPoints: 350,
+        },
+      ],
+    });
+
+    const approvalAction = actions[0] as ApprovalAction;
+    await approvalAction.transactionMethods.transact();
+
+    const createOrderAction = actions[1] as CreateOrderAction;
+    const order = await createOrderAction.createOrder();
+
+    expect(createOrderAction.type).to.equal("create");
+
+    const newConsiderationAmount = (
+      (ethers.parseEther("10") * (10_000n - 500n)) /
+      10_000n
+    ).toString();
+    const makerFeeAmount = (
+      (ethers.parseEther("10") * 500n) /
+      10_000n
+    ).toString();
+    const takerFeeAmount = (
+      (ethers.parseEther("10") * 350n) /
+      10_000n
+    ).toString();
+
+    expect(order).to.deep.equal({
+      parameters: {
+        consideration: [
+          // adjusted consideration (maker received amount)
+          {
+            startAmount: newConsiderationAmount,
+            endAmount: newConsiderationAmount,
+            identifierOrCriteria: "0",
+            itemType: ItemType.NATIVE,
+            token: ethers.ZeroAddress,
+            recipient: await offerer.getAddress(),
+          },
+          // maker fee
+          {
+            startAmount: makerFeeAmount,
+            endAmount: makerFeeAmount,
+            identifierOrCriteria: "0",
+            itemType: ItemType.NATIVE,
+            token: ethers.ZeroAddress,
+            recipient: await zone.getAddress(),
+          },
+          // pay part of the offer amount as the taker fee
+          {
+            startAmount: takerFeeAmount,
+            endAmount: takerFeeAmount,
+            identifierOrCriteria: "0",
+            itemType: ItemType.ERC20,
+            token: await testErc20.getAddress(),
+            recipient: await zone.getAddress(),
+          },
+        ],
+        endTime,
+        offer: [
+          {
+            startAmount: ethers.parseEther("10").toString(),
+            endAmount: ethers.parseEther("10").toString(),
+            identifierOrCriteria: "0",
+            itemType: ItemType.ERC20,
+            token: await testErc20.getAddress(),
+          },
+        ],
+        offerer: await offerer.getAddress(),
+        orderType: OrderType.FULL_OPEN,
+        salt,
+        startTime,
+        totalOriginalConsiderationItems: 3,
+        zone: ethers.ZeroAddress,
+        zoneHash: ethers.ZeroHash,
+        conduitKey: NO_CONDUIT,
+        counter: "0",
+      },
+      signature: order.signature,
+    });
+
+    const isValid = await seaportContract
+      .connect(randomSigner)
+      .validate.staticCall([
+        {
+          parameters: {
+            ...order.parameters,
+            totalOriginalConsiderationItems:
+              order.parameters.consideration.length,
+          },
+          signature: order.signature,
+        },
+      ]);
+
+    expect(isValid).to.be.true;
+  });
+
   describe("check validations", () => {
-    /*
-      temp commented out because this req was removed from _formatOrder
-
-      TODO: check if any new tests need to be written to address new logic
-
-      it("throws if currencies are different when applying fees", async () => {
-        const { seaport, testErc721, testErc20 } = fixture;
-
-        const [offerer, zone] = await ethers.getSigners();
-        const nftId = "1";
-        await testErc721.mint(await offerer.getAddress(), nftId);
-        const startTime = "0";
-        const endTime = MAX_INT.toString();
-        const salt = generateRandomSalt();
-        await testErc20.mint(await offerer.getAddress(), 1);
-
-        const input: CreateOrderInput = {
-          startTime,
-          endTime,
-          salt,
-          offer: [
-            {
-              itemType: ItemType.ERC721,
-              token: await testErc721.getAddress(),
-              identifier: nftId,
-            },
-          ],
-          consideration: [
-            {
-              amount: ethers.parseEther("10").toString(),
-              recipient: await offerer.getAddress(),
-            },
-            {
-              token: await testErc20.getAddress(),
-              amount: ethers.parseEther("1").toString(),
-              recipient: await zone.getAddress(),
-            },
-          ],
-          fees: [{ recipient: await zone.getAddress(), basisPoints: 250 }],
-        };
-
-        await expect(seaport.createOrder(input)).to.be.rejectedWith(
-          "All currency tokens in the order must be the same token when applying fees",
-        );
-
-        delete input.fees;
-
-        await expect(seaport.createOrder(input)).to.be.not.rejectedWith(
-          "All currency tokens in the order must be the same token when applying fees",
-        );
-      });
-    */
-
     it("throws if offerer does not have sufficient balances", async () => {
       const { seaport, testErc721, testErc20 } = fixture;
 

@@ -143,8 +143,6 @@ export type TipInputItem = CreateInputItem & { recipient: string };
 export type Fee = {
   recipient: string;
   basisPoints: number;
-  makerFee?: number; // bps
-  takerFee?: number; // bps
 };
 
 export type CreateOrderInput = {
@@ -156,7 +154,9 @@ export type CreateOrderInput = {
   offer: readonly CreateInputItem[];
   consideration: readonly ConsiderationInputItem[];
   counter?: BigNumberish;
-  fees?: readonly Fee[];
+  fees?: readonly Fee[]; // legacy fees
+  makerFees?: readonly Fee[];
+  takerFees?: readonly Fee[];
   allowPartialFills?: boolean;
   restrictedByZone?: boolean;
   domain?: string;
