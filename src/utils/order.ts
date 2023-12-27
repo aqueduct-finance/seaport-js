@@ -34,15 +34,12 @@ export const feeToConsiderationItem = ({
   baseAmount: BigNumberish;
   baseEndAmount?: BigNumberish;
 }): ConsiderationItem => {
-  // use maker fee if provided, else use legacy basisPoints value
-  const bps = fee.makerFee ? fee.makerFee : fee.basisPoints;
-
   return {
     itemType: token === ethers.ZeroAddress ? ItemType.NATIVE : ItemType.ERC20,
     token,
     identifierOrCriteria: "0",
-    startAmount: multiplyBasisPoints(baseAmount, bps).toString(),
-    endAmount: multiplyBasisPoints(baseEndAmount, bps).toString(),
+    startAmount: multiplyBasisPoints(baseAmount, fee.basisPoints).toString(),
+    endAmount: multiplyBasisPoints(baseEndAmount, fee.basisPoints).toString(),
     recipient: fee.recipient,
   };
 };
@@ -55,10 +52,8 @@ export const deductFees = <T extends Item>(
     return items;
   }
 
-  // use maker fee if provided, else use legacy basisPoints value
   const totalBasisPoints = fees.reduce(
-    (accBasisPoints, fee) =>
-      accBasisPoints + (fee.makerFee ? fee.makerFee : fee.basisPoints),
+    (accBasisPoints, fee) => accBasisPoints + fee.basisPoints,
     0,
   );
 
@@ -77,6 +72,65 @@ export const deductFees = <T extends Item>(
         ).toString()
       : item.endAmount,
   }));
+};
+
+export const deductMappedFees = <T extends Item>(
+  items: T[],
+  fees?: readonly Fee[],
+): T[] => {
+  if (!fees) {
+    return items;
+  }
+
+  if (items.length !== fees.length) {
+    throw new Error("Items and fees should be the same length");
+  }
+
+  return items.map((item, i) => ({
+    ...item,
+    startAmount: isCurrencyItem(item)
+      ? (
+          BigInt(item.startAmount) -
+          multiplyBasisPoints(item.startAmount, fees[i].basisPoints)
+        ).toString()
+      : item.startAmount,
+    endAmount: isCurrencyItem(item)
+      ? (
+          BigInt(item.endAmount) -
+          multiplyBasisPoints(item.endAmount, fees[i].basisPoints)
+        ).toString()
+      : item.endAmount,
+  }));
+};
+
+export const addMappedFees = <T extends Item>(
+  items: T[],
+  fees?: readonly Fee[],
+): ConsiderationItem[] => {
+  if (!fees) {
+    return [];
+  }
+
+  if (items.length !== fees.length) {
+    throw new Error("Items and fees should be the same length");
+  }
+
+  return items
+    .filter((item) => isCurrencyItem(item))
+    .map((item, i) => ({
+      itemType: item.itemType,
+      token: item.token,
+      identifierOrCriteria: item.identifierOrCriteria,
+      startAmount: multiplyBasisPoints(
+        item.startAmount,
+        fees[i].basisPoints,
+      ).toString(),
+      endAmount: multiplyBasisPoints(
+        item.endAmount,
+        fees[i].basisPoints,
+      ).toString(),
+      recipient: fees[i].recipient,
+    }));
 };
 
 export const mapInputItemToOfferItem = (item: CreateInputItem): OfferItem => {

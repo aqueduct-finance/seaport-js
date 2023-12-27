@@ -37,6 +37,7 @@ import type {
   ApprovalAction,
   CreateBulkOrdersAction,
   SeaportContract,
+  ConsiderationItem,
 } from "./types";
 import { getApprovalActions } from "./utils/approval";
 import {
@@ -54,8 +55,10 @@ import {
 } from "./utils/fulfill";
 import { getMaximumSizeForOrder, isCurrencyItem } from "./utils/item";
 import {
+  addMappedFees,
   areAllCurrenciesSame,
   deductFees,
+  deductMappedFees,
   feeToConsiderationItem,
   generateRandomSalt,
   mapInputItemToOfferItem,
@@ -304,6 +307,8 @@ export class Seaport {
       allowPartialFills,
       restrictedByZone,
       fees,
+      makerFees,
+      takerFees,
       domain,
       salt,
     }: CreateOrderInput,
@@ -316,11 +321,47 @@ export class Seaport {
       })),
     ];
 
-    const currencies = [...offerItems, ...considerationItems].filter(
-      isCurrencyItem,
-    );
+    let considerationItemsWithFees: ConsiderationItem[] = [];
+    // if no specific maker/taker fees supplied, use legacy fees
+    if (!makerFees && !takerFees) {
+      if (
+        fees?.length &&
+        !areAllCurrenciesSame({
+          offer: offerItems,
+          consideration: considerationItems,
+        })
+      ) {
+        throw new Error(
+          "All currency tokens in the order must be the same token when applying fees",
+        );
+      }
 
-    const totalCurrencyAmount = totalItemsAmount(currencies);
+      const currencies = [...offerItems, ...considerationItems].filter(
+        isCurrencyItem,
+      );
+
+      const totalCurrencyAmount = totalItemsAmount(currencies);
+
+      considerationItemsWithFees = [
+        ...deductFees(considerationItems, fees),
+        ...(currencies.length
+          ? fees?.map((fee) =>
+              feeToConsiderationItem({
+                fee,
+                token: currencies[0].token,
+                baseAmount: totalCurrencyAmount.startAmount,
+                baseEndAmount: totalCurrencyAmount.endAmount,
+              }),
+            ) ?? []
+          : []),
+      ];
+    } else {
+      considerationItemsWithFees = [
+        ...deductMappedFees(considerationItems, makerFees), // deduct from what the maker receives
+        ...addMappedFees(considerationItems, makerFees), // maker deductions added back with new recipient
+        ...addMappedFees(offerItems, takerFees), // deduct taker fees from received offer amounts
+      ];
+    }
 
     const operator = this.config.conduitKeyToConduit[conduitKey];
 
@@ -328,20 +369,6 @@ export class Seaport {
       allowPartialFills,
       restrictedByZone,
     });
-
-    const considerationItemsWithFees = [
-      ...deductFees(considerationItems, fees),
-      ...(currencies.length
-        ? fees?.map((fee) =>
-            feeToConsiderationItem({
-              fee,
-              token: currencies[0].token,
-              baseAmount: totalCurrencyAmount.startAmount,
-              baseEndAmount: totalCurrencyAmount.endAmount,
-            }),
-          ) ?? []
-        : []),
-    ];
 
     const saltFollowingConditional =
       salt !== undefined
