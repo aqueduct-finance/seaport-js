@@ -316,18 +316,6 @@ export class Seaport {
       })),
     ];
 
-    if (
-      fees?.length &&
-      !areAllCurrenciesSame({
-        offer: offerItems,
-        consideration: considerationItems,
-      })
-    ) {
-      throw new Error(
-        "All currency tokens in the order must be the same token when applying fees",
-      );
-    }
-
     const currencies = [...offerItems, ...considerationItems].filter(
       isCurrencyItem,
     );

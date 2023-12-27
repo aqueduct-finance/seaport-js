@@ -143,6 +143,8 @@ export type TipInputItem = CreateInputItem & { recipient: string };
 export type Fee = {
   recipient: string;
   basisPoints: number;
+  makerFee: number; // bps
+  takerFee: number; // bps
 };
 
 export type CreateOrderInput = {

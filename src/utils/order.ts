@@ -34,12 +34,15 @@ export const feeToConsiderationItem = ({
   baseAmount: BigNumberish;
   baseEndAmount?: BigNumberish;
 }): ConsiderationItem => {
+  // use maker fee if provided, else use legacy basisPoints value
+  const bps = fee.makerFee ? fee.makerFee : fee.basisPoints;
+
   return {
     itemType: token === ethers.ZeroAddress ? ItemType.NATIVE : ItemType.ERC20,
     token,
     identifierOrCriteria: "0",
-    startAmount: multiplyBasisPoints(baseAmount, fee.basisPoints).toString(),
-    endAmount: multiplyBasisPoints(baseEndAmount, fee.basisPoints).toString(),
+    startAmount: multiplyBasisPoints(baseAmount, bps).toString(),
+    endAmount: multiplyBasisPoints(baseEndAmount, bps).toString(),
     recipient: fee.recipient,
   };
 };
