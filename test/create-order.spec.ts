@@ -414,52 +414,58 @@ describeWithFixture("As a user I want to create an order", (fixture) => {
   });
 
   describe("check validations", () => {
-    it("throws if currencies are different when applying fees", async () => {
-      const { seaport, testErc721, testErc20 } = fixture;
+    /*
+      temp commented out because this req was removed from _formatOrder
 
-      const [offerer, zone] = await ethers.getSigners();
-      const nftId = "1";
-      await testErc721.mint(await offerer.getAddress(), nftId);
-      const startTime = "0";
-      const endTime = MAX_INT.toString();
-      const salt = generateRandomSalt();
-      await testErc20.mint(await offerer.getAddress(), 1);
+      TODO: check if any new tests need to be written to address new logic
 
-      const input: CreateOrderInput = {
-        startTime,
-        endTime,
-        salt,
-        offer: [
-          {
-            itemType: ItemType.ERC721,
-            token: await testErc721.getAddress(),
-            identifier: nftId,
-          },
-        ],
-        consideration: [
-          {
-            amount: ethers.parseEther("10").toString(),
-            recipient: await offerer.getAddress(),
-          },
-          {
-            token: await testErc20.getAddress(),
-            amount: ethers.parseEther("1").toString(),
-            recipient: await zone.getAddress(),
-          },
-        ],
-        fees: [{ recipient: await zone.getAddress(), basisPoints: 250 }],
-      };
+      it("throws if currencies are different when applying fees", async () => {
+        const { seaport, testErc721, testErc20 } = fixture;
 
-      await expect(seaport.createOrder(input)).to.be.rejectedWith(
-        "All currency tokens in the order must be the same token when applying fees",
-      );
+        const [offerer, zone] = await ethers.getSigners();
+        const nftId = "1";
+        await testErc721.mint(await offerer.getAddress(), nftId);
+        const startTime = "0";
+        const endTime = MAX_INT.toString();
+        const salt = generateRandomSalt();
+        await testErc20.mint(await offerer.getAddress(), 1);
 
-      delete input.fees;
+        const input: CreateOrderInput = {
+          startTime,
+          endTime,
+          salt,
+          offer: [
+            {
+              itemType: ItemType.ERC721,
+              token: await testErc721.getAddress(),
+              identifier: nftId,
+            },
+          ],
+          consideration: [
+            {
+              amount: ethers.parseEther("10").toString(),
+              recipient: await offerer.getAddress(),
+            },
+            {
+              token: await testErc20.getAddress(),
+              amount: ethers.parseEther("1").toString(),
+              recipient: await zone.getAddress(),
+            },
+          ],
+          fees: [{ recipient: await zone.getAddress(), basisPoints: 250 }],
+        };
 
-      await expect(seaport.createOrder(input)).to.be.not.rejectedWith(
-        "All currency tokens in the order must be the same token when applying fees",
-      );
-    });
+        await expect(seaport.createOrder(input)).to.be.rejectedWith(
+          "All currency tokens in the order must be the same token when applying fees",
+        );
+
+        delete input.fees;
+
+        await expect(seaport.createOrder(input)).to.be.not.rejectedWith(
+          "All currency tokens in the order must be the same token when applying fees",
+        );
+      });
+    */
 
     it("throws if offerer does not have sufficient balances", async () => {
       const { seaport, testErc721, testErc20 } = fixture;
