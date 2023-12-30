@@ -291,7 +291,7 @@ export class Seaport {
   /**
    * Formats an order for creation.
    */
-  private async _formatOrder(
+  public async _formatOrder(
     signer: Signer | JsonRpcSigner,
     offerer: string,
     exactApproval: boolean,
