@@ -86,9 +86,9 @@ export class Seaport {
 
   private signer?: Signer;
 
-  private config: Required<Omit<SeaportConfig, "overrides">>;
+  public config: Required<Omit<SeaportConfig, "overrides">>;
 
-  private defaultConduitKey: string;
+  public defaultConduitKey: string;
 
   readonly OPENSEA_CONDUIT_KEY = OPENSEA_CONDUIT_KEY;
 
