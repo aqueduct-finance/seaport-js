@@ -420,7 +420,7 @@ export class Seaport {
     return { orderComponents, approvalActions };
   }
 
-  private async _getSigner(
+  public async _getSigner(
     accountAddress?: string,
   ): Promise<Signer | JsonRpcSigner> {
     if (this.signer) {
