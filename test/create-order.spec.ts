@@ -443,10 +443,12 @@ describeWithFixture("As a user I want to create an order", (fixture) => {
       ],
       // 2.5% fee
       makerFees: [
-        {
-          recipient: await zone.getAddress(),
-          basisPoints: 250,
-        },
+        [
+          {
+            recipient: await zone.getAddress(),
+            basisPoints: 250,
+          },
+        ],
       ],
     });
 
@@ -555,10 +557,12 @@ describeWithFixture("As a user I want to create an order", (fixture) => {
       ],
       // 2.5% fee
       takerFees: [
-        {
-          recipient: await zone.getAddress(),
-          basisPoints: 250,
-        },
+        [
+          {
+            recipient: await zone.getAddress(),
+            basisPoints: 250,
+          },
+        ],
       ],
     });
 
@@ -662,16 +666,20 @@ describeWithFixture("As a user I want to create an order", (fixture) => {
         },
       ],
       makerFees: [
-        {
-          recipient: await zone.getAddress(),
-          basisPoints: 500,
-        },
+        [
+          {
+            recipient: await zone.getAddress(),
+            basisPoints: 500,
+          },
+        ],
       ],
       takerFees: [
-        {
-          recipient: await zone.getAddress(),
-          basisPoints: 350,
-        },
+        [
+          {
+            recipient: await zone.getAddress(),
+            basisPoints: 350,
+          },
+        ],
       ],
     });
 
@@ -742,6 +750,175 @@ describeWithFixture("As a user I want to create an order", (fixture) => {
         salt,
         startTime,
         totalOriginalConsiderationItems: 3,
+        zone: ethers.ZeroAddress,
+        zoneHash: ethers.ZeroHash,
+        conduitKey: NO_CONDUIT,
+        counter: "0",
+      },
+      signature: order.signature,
+    });
+
+    const isValid = await seaportContract
+      .connect(randomSigner)
+      .validate.staticCall([
+        {
+          parameters: {
+            ...order.parameters,
+            totalOriginalConsiderationItems:
+              order.parameters.consideration.length,
+          },
+          signature: order.signature,
+        },
+      ]);
+
+    expect(isValid).to.be.true;
+  });
+
+  it("should apply split maker/taker fees correctly", async () => {
+    const { seaportContract, seaport, testErc20 } = fixture;
+
+    const [offerer, zone, randomSigner] = await ethers.getSigners();
+    await testErc20.mint(
+      await offerer.getAddress(),
+      parseEther("10").toString(),
+    );
+    const startTime = "0";
+    const endTime = MAX_INT.toString();
+    const salt = generateRandomSalt();
+
+    const { actions } = await seaport.createOrder({
+      startTime,
+      endTime,
+      salt,
+      offer: [
+        {
+          token: await testErc20.getAddress(),
+          amount: parseEther("10").toString(),
+        },
+      ],
+      consideration: [
+        {
+          amount: ethers.parseEther("10").toString(),
+          recipient: await offerer.getAddress(),
+        },
+      ],
+      makerFees: [
+        [
+          {
+            recipient: await zone.getAddress(),
+            basisPoints: 100,
+          },
+          {
+            recipient: await zone.getAddress(),
+            basisPoints: 200,
+          },
+        ],
+      ],
+      takerFees: [
+        [
+          {
+            recipient: await zone.getAddress(),
+            basisPoints: 300,
+          },
+          {
+            recipient: await zone.getAddress(),
+            basisPoints: 400,
+          },
+        ],
+      ],
+    });
+
+    const approvalAction = actions[0] as ApprovalAction;
+    await approvalAction.transactionMethods.transact();
+
+    const createOrderAction = actions[1] as CreateOrderAction;
+    const order = await createOrderAction.createOrder();
+
+    expect(createOrderAction.type).to.equal("create");
+
+    const newConsiderationAmount = (
+      (ethers.parseEther("10") * (10_000n - 100n - 200n)) /
+      10_000n
+    ).toString();
+    const makerFeeAmount1 = (
+      (ethers.parseEther("10") * 100n) /
+      10_000n
+    ).toString();
+    const makerFeeAmount2 = (
+      (ethers.parseEther("10") * 200n) /
+      10_000n
+    ).toString();
+    const takerFeeAmount1 = (
+      (ethers.parseEther("10") * 300n) /
+      10_000n
+    ).toString();
+    const takerFeeAmount2 = (
+      (ethers.parseEther("10") * 400n) /
+      10_000n
+    ).toString();
+
+    expect(order).to.deep.equal({
+      parameters: {
+        consideration: [
+          // adjusted consideration (maker received amount)
+          {
+            startAmount: newConsiderationAmount,
+            endAmount: newConsiderationAmount,
+            identifierOrCriteria: "0",
+            itemType: ItemType.NATIVE,
+            token: ethers.ZeroAddress,
+            recipient: await offerer.getAddress(),
+          },
+          // maker fees
+          {
+            startAmount: makerFeeAmount1,
+            endAmount: makerFeeAmount1,
+            identifierOrCriteria: "0",
+            itemType: ItemType.NATIVE,
+            token: ethers.ZeroAddress,
+            recipient: await zone.getAddress(),
+          },
+          {
+            startAmount: makerFeeAmount2,
+            endAmount: makerFeeAmount2,
+            identifierOrCriteria: "0",
+            itemType: ItemType.NATIVE,
+            token: ethers.ZeroAddress,
+            recipient: await zone.getAddress(),
+          },
+          // pay part of the offer amount as the taker fees
+          {
+            startAmount: takerFeeAmount1,
+            endAmount: takerFeeAmount1,
+            identifierOrCriteria: "0",
+            itemType: ItemType.ERC20,
+            token: await testErc20.getAddress(),
+            recipient: await zone.getAddress(),
+          },
+          {
+            startAmount: takerFeeAmount2,
+            endAmount: takerFeeAmount2,
+            identifierOrCriteria: "0",
+            itemType: ItemType.ERC20,
+            token: await testErc20.getAddress(),
+            recipient: await zone.getAddress(),
+          },
+        ],
+        endTime,
+        offer: [
+          {
+            startAmount: ethers.parseEther("10").toString(),
+            endAmount: ethers.parseEther("10").toString(),
+            identifierOrCriteria: "0",
+            itemType: ItemType.ERC20,
+            token: await testErc20.getAddress(),
+          },
+        ],
+        offerer: await offerer.getAddress(),
+        orderType: OrderType.FULL_OPEN,
+        salt,
+        startTime,
+        totalOriginalConsiderationItems: 5,
         zone: ethers.ZeroAddress,
         zoneHash: ethers.ZeroHash,
         conduitKey: NO_CONDUIT,

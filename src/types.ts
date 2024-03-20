@@ -155,8 +155,8 @@ export type CreateOrderInput = {
   consideration: readonly ConsiderationInputItem[];
   counter?: BigNumberish;
   fees?: readonly Fee[]; // legacy fees
-  makerFees?: readonly Fee[];
-  takerFees?: readonly Fee[];
+  makerFees?: readonly Fee[][];
+  takerFees?: readonly Fee[][];
   allowPartialFills?: boolean;
   restrictedByZone?: boolean;
   domain?: string;

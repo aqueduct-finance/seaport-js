@@ -76,7 +76,7 @@ export const deductFees = <T extends Item>(
 
 export const deductMappedFees = <T extends Item>(
   items: T[],
-  fees?: readonly Fee[],
+  fees?: readonly Fee[][],
 ): T[] => {
   if (!fees) {
     return items;
@@ -86,26 +86,30 @@ export const deductMappedFees = <T extends Item>(
     throw new Error("Items and fees should be the same length");
   }
 
-  return items.map((item, i) => ({
-    ...item,
-    startAmount: isCurrencyItem(item)
-      ? (
-          BigInt(item.startAmount) -
-          multiplyBasisPoints(item.startAmount, fees[i].basisPoints)
-        ).toString()
-      : item.startAmount,
-    endAmount: isCurrencyItem(item)
-      ? (
-          BigInt(item.endAmount) -
-          multiplyBasisPoints(item.endAmount, fees[i].basisPoints)
-        ).toString()
-      : item.endAmount,
-  }));
+  return items.map((item, i) => {
+    const totalBps = fees[i].reduce((acc, fee) => acc + fee.basisPoints, 0);
+
+    return {
+      ...item,
+      startAmount: isCurrencyItem(item)
+        ? (
+            BigInt(item.startAmount) -
+            multiplyBasisPoints(item.startAmount, totalBps)
+          ).toString()
+        : item.startAmount,
+      endAmount: isCurrencyItem(item)
+        ? (
+            BigInt(item.endAmount) -
+            multiplyBasisPoints(item.endAmount, totalBps)
+          ).toString()
+        : item.endAmount,
+    };
+  });
 };
 
 export const addMappedFees = <T extends Item>(
   items: T[],
-  fees?: readonly Fee[],
+  fees?: readonly Fee[][],
 ): ConsiderationItem[] => {
   if (!fees) {
     return [];
@@ -117,20 +121,22 @@ export const addMappedFees = <T extends Item>(
 
   return items
     .filter((item) => isCurrencyItem(item))
-    .map((item, i) => ({
-      itemType: item.itemType,
-      token: item.token,
-      identifierOrCriteria: item.identifierOrCriteria,
-      startAmount: multiplyBasisPoints(
-        item.startAmount,
-        fees[i].basisPoints,
-      ).toString(),
-      endAmount: multiplyBasisPoints(
-        item.endAmount,
-        fees[i].basisPoints,
-      ).toString(),
-      recipient: fees[i].recipient,
-    }));
+    .flatMap((item, i) =>
+      fees[i].map((fee) => ({
+        itemType: item.itemType,
+        token: item.token,
+        identifierOrCriteria: item.identifierOrCriteria,
+        startAmount: multiplyBasisPoints(
+          item.startAmount,
+          fee.basisPoints,
+        ).toString(),
+        endAmount: multiplyBasisPoints(
+          item.endAmount,
+          fee.basisPoints,
+        ).toString(),
+        recipient: fee.recipient,
+      })),
+    );
 };
 
 export const mapInputItemToOfferItem = (item: CreateInputItem): OfferItem => {
