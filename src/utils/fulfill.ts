@@ -308,6 +308,7 @@ export function fulfillBasicOrder(
   const actions = [...approvalActions, exchangeAction] as const;
 
   return {
+    order,
     actions,
     executeAllActions: () =>
       executeAllActions(actions) as Promise<ContractTransaction>,
@@ -499,6 +500,7 @@ export function fulfillStandardOrder(
     actions,
     executeAllActions: () =>
       executeAllActions(actions) as Promise<ContractTransaction>,
+    order: orderWithAdjustedFills,
   };
 }
 

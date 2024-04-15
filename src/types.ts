@@ -228,6 +228,7 @@ export type OrderExchangeActions<T> = readonly [
 export type OrderUseCase<
   T extends CreateOrderAction | CreateBulkOrdersAction | ExchangeAction,
 > = {
+  order?: Order;
   actions: T extends CreateOrderAction
     ? CreateOrderActions
     : T extends CreateBulkOrdersAction
