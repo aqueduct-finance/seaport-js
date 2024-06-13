@@ -897,7 +897,7 @@ export class Seaport {
     if (
       !unitsToFill &&
       isRecipientSelf &&
-      shouldUseBasicFulfill(sanitizedOrder.parameters, totalFilled)
+      shouldUseBasicFulfill(sanitizedOrder.parameters, totalFilled, extraData)
     ) {
       // TODO: Use fulfiller proxy if there are approvals needed directly, but none needed for proxy
       return fulfillBasicOrder(

@@ -68,10 +68,12 @@ import {
  *    first consideration item amount
  * 9. The token on native currency items needs to be set to the null address and the identifier on
  *    currencies needs to be zero, and the amounts on the 721 item need to be 1
+ * 10. If extraData is provided, use advanced order
  */
 export const shouldUseBasicFulfill = (
   { offer, consideration, offerer }: OrderParameters,
   totalFilled: OrderStatus["totalFilled"],
+  extraData: string,
 ) => {
   // 1. The order must not be partially filled
   if (totalFilled !== 0n) {
@@ -156,6 +158,11 @@ export const shouldUseBasicFulfill = (
   const erc721sAreSingleAmount = nfts
     .filter(({ itemType }) => itemType === ItemType.ERC721)
     .every(({ endAmount }) => endAmount === "1");
+
+  //  10. If extraData is provided, use advanced order
+  if (extraData && extraData !== "0x") {
+    return false;
+  }
 
   return (
     nativeCurrencyIsZeroAddress &&
