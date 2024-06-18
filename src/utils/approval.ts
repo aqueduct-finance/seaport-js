@@ -1,5 +1,9 @@
 import { Signer, ethers } from "ethers";
-import { ItemType, MAX_INT } from "../constants";
+import {
+  CROSS_CHAIN_SEAPORT_V1_5_ADDRESS,
+  ItemType,
+  MAX_INT,
+} from "../constants";
 import { TestERC721__factory, TestERC20__factory } from "../typechain-types";
 import type { ApprovalAction, Item } from "../types";
 import type { InsufficientApprovals } from "./balanceAndApprovalCheck";
@@ -16,9 +20,20 @@ export const approvedItemAmount = async (
     // isApprovedForAll check is the same for both ERC721 and ERC1155, defaulting to ERC721
     const contract = TestERC721__factory.connect(item.token, provider);
 
+    // check approved for all
     const isApprovedForAll = await contract.isApprovedForAll(owner, operator);
+
+    // check this token specifically approved
+    let isApproved = false;
+    if (!isApprovedForAll) {
+      const approvedAddress = await contract.getApproved(
+        item.identifierOrCriteria,
+      );
+      isApproved = approvedAddress === CROSS_CHAIN_SEAPORT_V1_5_ADDRESS;
+    }
+
     // Setting to the max int to consolidate types and simplify
-    return isApprovedForAll ? MAX_INT : 0n;
+    return isApprovedForAll || isApproved ? MAX_INT : 0n;
   } else if (item.itemType === ItemType.ERC20) {
     const contract = TestERC20__factory.connect(item.token, provider);
 
