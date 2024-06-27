@@ -19,6 +19,7 @@ import {
   OrderType,
   DOMAIN_REGISTRY_ADDRESS,
   CROSS_CHAIN_SEAPORT_V1_5_ADDRESS,
+  ItemType,
 } from "./constants";
 import type {
   SeaportConfig,
@@ -309,6 +310,7 @@ export class Seaport {
       fees,
       makerFees,
       takerFees,
+      nftFees,
       domain,
       salt,
     }: CreateOrderInput,
@@ -356,11 +358,26 @@ export class Seaport {
           : []),
       ];
     } else {
-      considerationItemsWithFees = [
-        ...deductMappedFees(considerationItems, makerFees), // deduct from what the maker receives
-        ...addMappedFees(considerationItems, makerFees), // maker deductions added back with new recipient
-        ...addMappedFees(offerItems, takerFees), // deduct taker fees from received offer amounts
-      ];
+      // if both are erc20, use maker/taker fees
+      if (
+        considerationItems[0].itemType === ItemType.ERC20 &&
+        offerItems[0].itemType === ItemType.ERC20
+      ) {
+        considerationItemsWithFees = [
+          ...deductMappedFees(considerationItems, makerFees), // deduct from what the maker receives
+          ...addMappedFees(considerationItems, makerFees), // maker deductions added back with new recipient
+          ...addMappedFees(offerItems, takerFees), // deduct taker fees from received offer amounts
+        ];
+      } else {
+        let oneSideFees = nftFees ? nftFees : makerFees;
+
+        // otherwise, use one-sided fees
+        considerationItemsWithFees = [
+          ...deductMappedFees(considerationItems, oneSideFees), // deduct from what the maker receives
+          ...addMappedFees(considerationItems, oneSideFees), // maker deductions added back with new recipient
+          ...addMappedFees(offerItems, oneSideFees), // deduct taker fees from received offer amounts
+        ];
+      }
     }
 
     const operator = this.config.conduitKeyToConduit[conduitKey];

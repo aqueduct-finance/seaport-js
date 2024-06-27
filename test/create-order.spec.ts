@@ -2,11 +2,7 @@ import { expect } from "chai";
 import { parseEther } from "ethers";
 import { ethers } from "hardhat";
 import { ItemType, MAX_INT, NO_CONDUIT, OrderType } from "../src/constants";
-import {
-  ApprovalAction,
-  CreateOrderAction,
-  CreateOrderInput,
-} from "../src/types";
+import { ApprovalAction, CreateOrderAction } from "../src/types";
 import { generateRandomSalt } from "../src/utils/order";
 import { describeWithFixture } from "./utils/setup";
 import { OPENSEA_DOMAIN, OPENSEA_DOMAIN_TAG } from "./utils/constants";
@@ -919,6 +915,260 @@ describeWithFixture("As a user I want to create an order", (fixture) => {
         salt,
         startTime,
         totalOriginalConsiderationItems: 5,
+        zone: ethers.ZeroAddress,
+        zoneHash: ethers.ZeroHash,
+        conduitKey: NO_CONDUIT,
+        counter: "0",
+      },
+      signature: order.signature,
+    });
+
+    const isValid = await seaportContract
+      .connect(randomSigner)
+      .validate.staticCall([
+        {
+          parameters: {
+            ...order.parameters,
+            totalOriginalConsiderationItems:
+              order.parameters.consideration.length,
+          },
+          signature: order.signature,
+        },
+      ]);
+
+    expect(isValid).to.be.true;
+  });
+
+  it("should apply one sided erc721 fees correctly, erc721 in offer", async () => {
+    const { seaportContract, seaport, testErc721 } = fixture;
+
+    const [offerer, zone, randomSigner] = await ethers.getSigners();
+    const nftId = "1";
+    await testErc721.mint(await offerer.getAddress(), nftId);
+    const startTime = "0";
+    const endTime = MAX_INT.toString();
+    const salt = generateRandomSalt();
+
+    const { actions } = await seaport.createOrder({
+      startTime,
+      endTime,
+      salt,
+      offer: [
+        {
+          itemType: ItemType.ERC721,
+          token: await testErc721.getAddress(),
+          identifier: nftId,
+        },
+      ],
+      consideration: [
+        {
+          amount: ethers.parseEther("10").toString(),
+          recipient: await offerer.getAddress(),
+        },
+      ],
+      makerFees: [
+        [
+          {
+            recipient: await zone.getAddress(),
+            basisPoints: 10000,
+          },
+        ],
+      ],
+      takerFees: [
+        [
+          {
+            recipient: await zone.getAddress(),
+            basisPoints: 10000,
+          },
+        ],
+      ],
+      nftFees: [
+        [
+          {
+            recipient: await zone.getAddress(),
+            basisPoints: 200,
+          },
+        ],
+      ],
+    });
+
+    const approvalAction = actions[0] as ApprovalAction;
+    await approvalAction.transactionMethods.transact();
+
+    const createOrderAction = actions[1] as CreateOrderAction;
+    const order = await createOrderAction.createOrder();
+
+    expect(createOrderAction.type).to.equal("create");
+
+    const newConsiderationAmount = (
+      (ethers.parseEther("10") * (10_000n - 200n)) /
+      10_000n
+    ).toString();
+    const makerFeeAmount = (
+      (ethers.parseEther("10") * 200n) /
+      10_000n
+    ).toString();
+
+    expect(order).to.deep.equal({
+      parameters: {
+        consideration: [
+          // adjusted consideration (maker received amount)
+          {
+            startAmount: newConsiderationAmount,
+            endAmount: newConsiderationAmount,
+            identifierOrCriteria: "0",
+            itemType: ItemType.NATIVE,
+            token: ethers.ZeroAddress,
+            recipient: await offerer.getAddress(),
+          },
+          // nftFees applied as maker fee
+          {
+            startAmount: makerFeeAmount,
+            endAmount: makerFeeAmount,
+            identifierOrCriteria: "0",
+            itemType: ItemType.NATIVE,
+            token: ethers.ZeroAddress,
+            recipient: await zone.getAddress(),
+          },
+        ],
+        endTime,
+        offer: [
+          {
+            endAmount: "1",
+            identifierOrCriteria: nftId,
+            itemType: ItemType.ERC721,
+            startAmount: "1",
+            token: await testErc721.getAddress(),
+          },
+        ],
+        offerer: await offerer.getAddress(),
+        orderType: OrderType.FULL_OPEN,
+        salt,
+        startTime,
+        totalOriginalConsiderationItems: 2,
+        zone: ethers.ZeroAddress,
+        zoneHash: ethers.ZeroHash,
+        conduitKey: NO_CONDUIT,
+        counter: "0",
+      },
+      signature: order.signature,
+    });
+
+    const isValid = await seaportContract
+      .connect(randomSigner)
+      .validate.staticCall([
+        {
+          parameters: {
+            ...order.parameters,
+            totalOriginalConsiderationItems:
+              order.parameters.consideration.length,
+          },
+          signature: order.signature,
+        },
+      ]);
+
+    expect(isValid).to.be.true;
+  });
+
+  it("should apply one sided erc721 fees correctly, erc721 in consideration", async () => {
+    const { seaportContract, seaport, testErc721 } = fixture;
+
+    const [offerer, recipient, zone, randomSigner] = await ethers.getSigners();
+    const nftId = "1";
+    await testErc721.mint(await recipient.getAddress(), nftId);
+    const startTime = "0";
+    const endTime = MAX_INT.toString();
+    const salt = generateRandomSalt();
+
+    const { actions } = await seaport.createOrder({
+      startTime,
+      endTime,
+      salt,
+      offer: [
+        {
+          amount: ethers.parseEther("10").toString(),
+        },
+      ],
+      consideration: [
+        {
+          itemType: ItemType.ERC721,
+          token: await testErc721.getAddress(),
+          identifier: nftId,
+        },
+      ],
+      makerFees: [
+        [
+          {
+            recipient: await zone.getAddress(),
+            basisPoints: 10000,
+          },
+        ],
+      ],
+      takerFees: [
+        [
+          {
+            recipient: await zone.getAddress(),
+            basisPoints: 10000,
+          },
+        ],
+      ],
+      nftFees: [
+        [
+          {
+            recipient: await zone.getAddress(),
+            basisPoints: 200,
+          },
+        ],
+      ],
+    });
+
+    const createOrderAction = actions[0] as CreateOrderAction;
+    const order = await createOrderAction.createOrder();
+
+    expect(createOrderAction.type).to.equal("create");
+
+    const takerFeeAmount = (
+      (ethers.parseEther("10") * 200n) /
+      10_000n
+    ).toString();
+
+    expect(order).to.deep.equal({
+      parameters: {
+        consideration: [
+          // erc721 (not adjusted)
+          {
+            endAmount: "1",
+            identifierOrCriteria: nftId,
+            itemType: ItemType.ERC721,
+            startAmount: "1",
+            token: await testErc721.getAddress(),
+            recipient: await offerer.getAddress(),
+          },
+          // nftFees applied as taker fee
+          {
+            startAmount: takerFeeAmount,
+            endAmount: takerFeeAmount,
+            identifierOrCriteria: "0",
+            itemType: ItemType.NATIVE,
+            token: ethers.ZeroAddress,
+            recipient: await zone.getAddress(),
+          },
+        ],
+        endTime,
+        offer: [
+          {
+            startAmount: ethers.parseEther("10").toString(),
+            endAmount: ethers.parseEther("10").toString(),
+            identifierOrCriteria: "0",
+            itemType: ItemType.NATIVE,
+            token: ethers.ZeroAddress,
+          },
+        ],
+        offerer: await offerer.getAddress(),
+        orderType: OrderType.FULL_OPEN,
+        salt,
+        startTime,
+        totalOriginalConsiderationItems: 2,
         zone: ethers.ZeroAddress,
         zoneHash: ethers.ZeroHash,
         conduitKey: NO_CONDUIT,

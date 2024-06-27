@@ -157,6 +157,7 @@ export type CreateOrderInput = {
   fees?: readonly Fee[]; // legacy fees
   makerFees?: readonly Fee[][];
   takerFees?: readonly Fee[][];
+  nftFees?: readonly Fee[][];
   allowPartialFills?: boolean;
   restrictedByZone?: boolean;
   domain?: string;
