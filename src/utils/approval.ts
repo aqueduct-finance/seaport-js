@@ -58,7 +58,9 @@ export function getApprovalActions(
     .filter(
       (approval, index) =>
         index === insufficientApprovals.length - 1 ||
-        insufficientApprovals[index + 1].token !== approval.token,
+        insufficientApprovals[index + 1].token !== approval.token ||
+        insufficientApprovals[index + 1].identifierOrCriteria !==
+          approval.identifierOrCriteria,
     )
     .map(
       ({
