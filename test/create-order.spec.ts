@@ -982,7 +982,7 @@ describeWithFixture("As a user I want to create an order", (fixture) => {
           },
         ],
       ],
-      nftFees: [
+      considerationNftFees: [
         [
           {
             recipient: await zone.getAddress(),
@@ -1112,7 +1112,7 @@ describeWithFixture("As a user I want to create an order", (fixture) => {
           },
         ],
       ],
-      nftFees: [
+      offerNftFees: [
         [
           {
             recipient: await zone.getAddress(),

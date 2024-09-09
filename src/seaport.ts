@@ -310,7 +310,8 @@ export class Seaport {
       fees,
       makerFees,
       takerFees,
-      nftFees,
+      offerNftFees,
+      considerationNftFees,
       domain,
       salt,
     }: CreateOrderInput,
@@ -371,13 +372,16 @@ export class Seaport {
           ...addMappedFees(offerItems, takerFees), // deduct taker fees from received offer amounts
         ];
       } else {
-        let oneSideFees = nftFees ? nftFees : makerFees;
+        let offerFees = offerNftFees ? offerNftFees : makerFees;
+        let considerationFees = considerationNftFees
+          ? considerationNftFees
+          : takerFees;
 
         // otherwise, use one-sided fees
         considerationItemsWithFees = [
-          ...deductMappedFees(considerationItems, oneSideFees), // deduct from what the maker receives
-          ...addMappedFees(considerationItems, oneSideFees), // maker deductions added back with new recipient
-          ...addMappedFees(offerItems, oneSideFees), // deduct taker fees from received offer amounts
+          ...deductMappedFees(considerationItems, considerationFees), // deduct from what the maker receives
+          ...addMappedFees(considerationItems, considerationFees), // maker deductions added back with new recipient
+          ...addMappedFees(offerItems, offerFees), // deduct taker fees from received offer amounts
         ];
       }
     }
