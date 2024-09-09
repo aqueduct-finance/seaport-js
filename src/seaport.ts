@@ -358,10 +358,12 @@ export class Seaport {
           : []),
       ];
     } else {
-      // if both are erc20, use maker/taker fees
+      // if both are erc20 or native, use maker/taker fees
+      const i1 = considerationItems[0].itemType;
+      const i2 = offerItems[0].itemType;
       if (
-        considerationItems[0].itemType === ItemType.ERC20 &&
-        offerItems[0].itemType === ItemType.ERC20
+        (i1 === ItemType.ERC20 || i1 === ItemType.NATIVE) &&
+        (i2 === ItemType.ERC20 || i2 === ItemType.NATIVE)
       ) {
         considerationItemsWithFees = [
           ...deductMappedFees(considerationItems, makerFees), // deduct from what the maker receives

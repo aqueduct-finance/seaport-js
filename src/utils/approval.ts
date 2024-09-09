@@ -23,13 +23,15 @@ export const approvedItemAmount = async (
     // check approved for all
     const isApprovedForAll = await contract.isApprovedForAll(owner, operator);
 
-    // check this token specifically approved
+    // if erc721, check this token specifically approved
     let isApproved = false;
-    if (!isApprovedForAll) {
-      const approvedAddress = await contract.getApproved(
-        item.identifierOrCriteria,
-      );
-      isApproved = approvedAddress === CROSS_CHAIN_SEAPORT_V1_5_ADDRESS;
+    if (isErc721Item(item.itemType)) {
+      if (!isApprovedForAll) {
+        const approvedAddress = await contract.getApproved(
+          item.identifierOrCriteria,
+        );
+        isApproved = approvedAddress === CROSS_CHAIN_SEAPORT_V1_5_ADDRESS;
+      }
     }
 
     // Setting to the max int to consolidate types and simplify
