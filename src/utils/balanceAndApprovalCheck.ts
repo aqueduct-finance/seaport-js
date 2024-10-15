@@ -35,6 +35,7 @@ export type InsufficientApprovals = {
   requiredApprovedAmount: bigint;
   operator: string;
   itemType: ItemType;
+  forcedApproval?: boolean;
 }[];
 
 const findBalanceAndApproval = (
@@ -147,7 +148,13 @@ export const getInsufficientBalanceAndApprovalAmounts = ({
   ): InsufficientBalances =>
     tokenAndIdentifierAndAmountNeeded
       .filter(([token, identifierOrCriteria, amountNeeded]) => {
-        if (filterKey === "approvedAmount" && forcedApproval) {
+        if (
+          filterKey === "approvedAmount" &&
+          forcedApproval &&
+          (!identifierOrCriteria ||
+            identifierOrCriteria === "" ||
+            identifierOrCriteria === "0")
+        ) {
           return true;
         }
 
@@ -186,6 +193,9 @@ export const getInsufficientBalanceAndApprovalAmounts = ({
       (forcedApproval ? insufficientBalance.amountHave : 0n),
     itemType: insufficientBalance.itemType,
     operator,
+    forcedApproval:
+      forcedApproval &&
+      insufficientBalance.amountHave > insufficientBalance.requiredAmount,
   });
 
   const [insufficientBalances, insufficientApprovals] = [

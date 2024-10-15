@@ -194,6 +194,7 @@ export type ApprovalAction = {
   transactionMethods: TransactionMethods<
     TestERC721["setApprovalForAll"] | TestERC20["approve"]
   >;
+  forcedApproval?: boolean;
 };
 
 export type ExchangeAction<T = unknown> = {

@@ -69,6 +69,7 @@ export function getApprovalActions(
         itemType,
         identifierOrCriteria,
         requiredApprovedAmount,
+        forcedApproval,
       }) => {
         const isErc1155 = isErc1155Item(itemType);
         if (isErc721Item(itemType) || isErc1155) {
@@ -108,6 +109,7 @@ export function getApprovalActions(
               [operator, exactApproval ? requiredApprovedAmount : MAX_INT],
             ),
             operator,
+            forcedApproval,
           };
         }
       },
