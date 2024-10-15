@@ -190,6 +190,7 @@ export class Seaport {
     input: CreateOrderInput,
     accountAddress?: string,
     exactApproval?: boolean,
+    forcedApproval?: boolean,
   ): Promise<OrderUseCase<CreateOrderAction>> {
     const signer = await this._getSigner(accountAddress);
     const offerer = accountAddress ?? (await signer.getAddress());
@@ -199,6 +200,7 @@ export class Seaport {
       offerer,
       Boolean(exactApproval),
       input,
+      forcedApproval,
     );
 
     const createOrderAction = {
@@ -315,6 +317,7 @@ export class Seaport {
       domain,
       salt,
     }: CreateOrderInput,
+    forcedApproval?: boolean,
   ) {
     const offerItems = offer.map(mapInputItemToOfferItem);
     const considerationItems = [
@@ -430,6 +433,7 @@ export class Seaport {
         balancesAndApprovals,
         throwOnInsufficientBalances: true,
         operator,
+        forcedApproval,
       });
 
       const approvals = getApprovalActions(

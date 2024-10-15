@@ -120,12 +120,14 @@ export const getInsufficientBalanceAndApprovalAmounts = ({
   balancesAndApprovals,
   tokenAndIdentifierAmounts,
   operator,
+  forcedApproval,
 }: {
   balancesAndApprovals: BalancesAndApprovals;
   tokenAndIdentifierAmounts: ReturnType<
     typeof getSummedTokenAndIdentifierAmounts
   >;
   operator: string;
+  forcedApproval?: boolean;
 }): {
   insufficientBalances: InsufficientBalances;
   insufficientApprovals: InsufficientApprovals;
@@ -144,14 +146,19 @@ export const getInsufficientBalanceAndApprovalAmounts = ({
     filterKey: "balance" | "approvedAmount",
   ): InsufficientBalances =>
     tokenAndIdentifierAndAmountNeeded
-      .filter(
-        ([token, identifierOrCriteria, amountNeeded]) =>
+      .filter(([token, identifierOrCriteria, amountNeeded]) => {
+        if (filterKey === "approvedAmount" && forcedApproval) {
+          return true;
+        }
+
+        return (
           findBalanceAndApproval(
             balancesAndApprovals,
             token,
             identifierOrCriteria,
-          )[filterKey] < amountNeeded,
-      )
+          )[filterKey] < amountNeeded
+        );
+      })
       .map(([token, identifierOrCriteria, amount]) => {
         const balanceAndApproval = findBalanceAndApproval(
           balancesAndApprovals,
@@ -174,7 +181,9 @@ export const getInsufficientBalanceAndApprovalAmounts = ({
     token: insufficientBalance.token,
     identifierOrCriteria: insufficientBalance.identifierOrCriteria,
     approvedAmount: insufficientBalance.amountHave,
-    requiredApprovedAmount: insufficientBalance.requiredAmount,
+    requiredApprovedAmount:
+      insufficientBalance.requiredAmount +
+      (forcedApproval ? insufficientBalance.amountHave : 0n),
     itemType: insufficientBalance.itemType,
     operator,
   });
@@ -205,12 +214,14 @@ export const validateOfferBalancesAndApprovals = ({
   throwOnInsufficientBalances = true,
   throwOnInsufficientApprovals,
   operator,
+  forcedApproval,
 }: {
   balancesAndApprovals: BalancesAndApprovals;
   timeBasedItemParams?: TimeBasedItemParams;
   throwOnInsufficientBalances?: boolean;
   throwOnInsufficientApprovals?: boolean;
   operator: string;
+  forcedApproval?: boolean;
 } & Pick<OrderParameters, "offer"> & {
     criterias: InputCriteria[];
   }): InsufficientApprovals => {
@@ -225,6 +236,7 @@ export const validateOfferBalancesAndApprovals = ({
           : undefined,
       }),
       operator,
+      forcedApproval,
     });
 
   if (throwOnInsufficientBalances && insufficientBalances.length > 0) {
