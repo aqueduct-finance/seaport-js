@@ -13,6 +13,9 @@ export type SeaportConfig = {
   // Allow users to optionally skip balance and approval checks on order creation
   balanceAndApprovalChecksOnOrderCreation?: boolean;
 
+  // Gives users the option to approve in addition to the current approval
+  forcedApproval?: boolean;
+
   // A mapping of conduit key to conduit
   conduitKeyToConduit?: Record<string, string>;
 

@@ -104,6 +104,7 @@ export class Seaport {
       // Five minute buffer
       ascendingAmountFulfillmentBuffer = 300,
       balanceAndApprovalChecksOnOrderCreation = true,
+      forcedApproval = false,
       conduitKeyToConduit,
       seaportVersion = "1.5",
     }: SeaportConfig = {},
@@ -154,6 +155,7 @@ export class Seaport {
         ...conduitKeyToConduit,
       },
       seaportVersion,
+      forcedApproval,
     };
 
     this.defaultConduitKey = overrides?.defaultConduitKey ?? NO_CONDUIT;
@@ -190,7 +192,6 @@ export class Seaport {
     input: CreateOrderInput,
     accountAddress?: string,
     exactApproval?: boolean,
-    forcedApproval?: boolean,
   ): Promise<OrderUseCase<CreateOrderAction>> {
     const signer = await this._getSigner(accountAddress);
     const offerer = accountAddress ?? (await signer.getAddress());
@@ -200,7 +201,7 @@ export class Seaport {
       offerer,
       Boolean(exactApproval),
       input,
-      forcedApproval,
+      this.config.forcedApproval,
     );
 
     const createOrderAction = {
