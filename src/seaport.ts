@@ -105,6 +105,7 @@ export class Seaport {
       ascendingAmountFulfillmentBuffer = 300,
       balanceAndApprovalChecksOnOrderCreation = true,
       forcedApproval = false,
+      skipEip2098 = false,
       conduitKeyToConduit,
       seaportVersion = "1.5",
     }: SeaportConfig = {},
@@ -156,6 +157,7 @@ export class Seaport {
       },
       seaportVersion,
       forcedApproval,
+      skipEip2098,
     };
 
     this.defaultConduitKey = overrides?.defaultConduitKey ?? NO_CONDUIT;
@@ -192,7 +194,6 @@ export class Seaport {
     input: CreateOrderInput,
     accountAddress?: string,
     exactApproval?: boolean,
-    skipEip2098?: boolean,
   ): Promise<OrderUseCase<CreateOrderAction>> {
     const signer = await this._getSigner(accountAddress);
     const offerer = accountAddress ?? (await signer.getAddress());
@@ -211,11 +212,7 @@ export class Seaport {
         return this._getMessageToSign(orderComponents);
       },
       createOrder: async () => {
-        const signature = await this.signOrder(
-          orderComponents,
-          offerer,
-          skipEip2098,
-        );
+        const signature = await this.signOrder(orderComponents, offerer);
 
         return {
           parameters: orderComponents,
@@ -552,7 +549,6 @@ export class Seaport {
   public async signOrder(
     orderComponents: OrderComponents,
     accountAddress?: string,
-    skipEip2098?: boolean,
   ): Promise<string> {
     const signer = await this._getSigner(accountAddress);
 
@@ -565,7 +561,7 @@ export class Seaport {
     );
 
     // Use EIP-2098 compact signatures to save gas.
-    if (signature.length === 132 && !skipEip2098) {
+    if (signature.length === 132 && !this.config.skipEip2098) {
       signature = ethers.Signature.from(signature).compactSerialized;
     }
 

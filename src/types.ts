@@ -16,6 +16,9 @@ export type SeaportConfig = {
   // Gives users the option to approve in addition to the current approval
   forcedApproval?: boolean;
 
+  // Skips eip2098 signature truncation
+  skipEip2098?: boolean;
+
   // A mapping of conduit key to conduit
   conduitKeyToConduit?: Record<string, string>;
 
